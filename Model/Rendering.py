@@ -9,9 +9,17 @@ class NerfRender:
     The comments in the code refers to the vanila NeRF paper:
     https://www.matthewtancik.com/nerf
     """
-    def __init__(self, res_x, res_y, device='cpu'):
+    def __init__(self, res_x, res_y, num_bins=100, device='cpu'):
+        """
+
+        :param res_x:
+        :param res_y:
+        :param num_bins: an integer parameter specifying the amount of bins for sampling t values
+        :param device:
+        """
         self.res_x = res_x
         self.res_y = res_y
+        self.num_bins = num_bins
         if device == 'cpu' or device == 'cuda':
             self.device = device
         else:
@@ -80,7 +88,7 @@ class NerfRender:
         return torch.cat((torch.ones(accum_transmittance.shape[0], 1, device=self.device),
                           accum_transmittance[:, :-1]), dim=1)
 
-    def render_view(self, model, rays_o: torch.FloatTensor, rays_dirs: torch.FloatTensor, tn, tf, num_bins=100, white_background=False):
+    def render_view(self, model, rays_o: torch.FloatTensor, rays_dirs: torch.FloatTensor, tn, tf, white_background=False):
         """
         A function for rendering the specified view using the trained NeRF model.
         :param model: a torch.nn.Module object with trained model
@@ -88,7 +96,6 @@ class NerfRender:
         :param rays_dirs: a torch tensor with direction vectors of the camera rays for the current view
         :param tn: the lower bound of the point sampling interval (see eq (1) in NeRF paper)
         :param tf: the upper bound of the point sampling interval (see eq (1) in NeRF paper)
-        :param num_bins: an integer parameter specifying the amount of bins for sampling t values
         :param white_background: a boolean flag that enables/disables background noise reduction for synthetic data
         :return: a torch tensor with colour of the NeRF object - solution of the volume rendering equation
         """
@@ -98,7 +105,7 @@ class NerfRender:
 
         # Partitioning of the interval [tn, tf] into N evenly-spaced bins
         # shape of t array: (bins_num, )
-        t = torch.linspace(tn, tf, num_bins).to(self.device)
+        t = torch.linspace(tn, tf, self.num_bins).to(self.device)
         t_inf = torch.tensor([1e10]).to(self.device)
 
         # Computing the distance between adjacent samples (the last value in deltas should be inf value)
@@ -116,8 +123,8 @@ class NerfRender:
         colors, density = model.forward(x_model, rays_dirs_model)
 
         # reshaping the data
-        colors = colors.reshape((x.shape[0], num_bins, 3))
-        density = density.reshape((x.shape[0], num_bins))
+        colors = colors.reshape((x.shape[0], self.num_bins, 3))
+        density = density.reshape((x.shape[0], self.num_bins))
 
         # Volume rendering equation quadrature rule, eq (3): C(x) = Sum from i=1 to N (T_i * alpha_i * c_i),
         # where alpha_i = 1 - exp(-sigma_i * delta_i); here sigma_i == density
@@ -140,7 +147,7 @@ class NerfRender:
         return c
 
     @torch.no_grad()
-    def generate_view(self, model, rays_o: torch.FloatTensor, rays_dirs: torch.FloatTensor, tn, tf, num_bins=100, chunk_size=10):
+    def generate_view(self, model, rays_o: torch.FloatTensor, rays_dirs: torch.FloatTensor, tn, tf, chunk_size=10):
         """
         A function for rendering a novel view using trained NeRF model
         :param model: a torch.nn.Module object with trained model
@@ -148,7 +155,6 @@ class NerfRender:
         :param rays_dirs: a torch tensor with direction vectors of the camera rays for the current view
         :param tn: the lower bound of the point sampling interval (see eq (1) in NeRF paper)
         :param tf: the upper bound of the point sampling interval (see eq (1) in NeRF paper)
-        :param num_bins: an integer parameter specifying the amount of bins for sampling t values
         :param chunk_size: an integer value that specifies the amount of chunks that rays_o and rays_dir will be split into
         :return: an image of the novel view
         """
@@ -163,7 +169,7 @@ class NerfRender:
         # rendering a novel view
         image = []
         for o_batch, dir_batch, i in zip(rays_o, rays_dir, tqdm.trange(len(rays_o))):
-            img_batch = self.render_view(model, o_batch, dir_batch, tn, tf, num_bins, white_background=True)
+            img_batch = self.render_view(model, o_batch, dir_batch, tn, tf, white_background=True)
             image.append(img_batch)  # shape: N x 3 per img_batch
 
         image = torch.cat(image)
