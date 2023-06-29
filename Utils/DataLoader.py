@@ -63,8 +63,8 @@ class DataSetLoader:
 
         for i, f in enumerate(img_files):
             img = imageio.imread(f.as_posix())
-            if max(img[:, 0].flatten()) == 255 or max(img[:, 1].flatten()) == 255 or max(img[:, 2].flatten()) == 255:
-                img /= 255.0
+            if img.dtype == np.uint8 or img.dtype == np.uint16:
+                img = img / 255.0
             images.append(img[None, ...])
 
         images = np.concatenate(images)
