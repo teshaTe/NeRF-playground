@@ -41,8 +41,8 @@ class NerfRender:
 
         # initializing the arrays
         total = len(cams_poses)
-        cams_poses = torch.from_numpy(cams_poses)
-        cams_intrinsics = torch.from_numpy(cams_intrinsics)
+        cams_poses = torch.from_numpy(cams_poses).type(torch.float)
+        cams_intrinsics = torch.from_numpy(cams_intrinsics).type(torch.float)
         rays_o = torch.zeros((total, self.res_x * self.res_y, 3))
         rays_d = torch.zeros((total, self.res_x * self.res_y, 3))
 
@@ -60,7 +60,7 @@ class NerfRender:
             fy = cams_intrinsics[i][1, 1]
 
             # assembling direction vectors per image
-            rays_dirs = torch.stack(((u - self.res_x / 2) / fx, (-(v - self.res_y / 2) / fy), -np.ones_like(u)), axis=-1)
+            rays_dirs = torch.stack(((u - self.res_x / 2) / fx, (-(v - self.res_y / 2) / fy), -torch.ones_like(u)), axis=-1)
             rays_dirs = torch.matmul(cams_poses[i][:3, :3], rays_dirs[..., None]).squeeze(-1)
 
             # normalizaton of the direction vectors
@@ -77,7 +77,7 @@ class NerfRender:
         :param images: a numpy ndarray (N x W x H x 3) with imagery data
         :return: a numpy ndarray with pixel data
         """
-        return images.reshape((len(images), self.res_x*self.res_y, 3))
+        return torch.from_numpy(images.reshape((len(images), self.res_x*self.res_y, 3))).type(torch.float)
 
     def compute_accumulated_transmittance(self, betas: torch.FloatTensor):
         """
