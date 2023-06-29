@@ -11,6 +11,7 @@ dependencies:
     - natsort
     - PyMcubes
     - pyglet==1.5.27
+    - pytest
     - wheel
     - tqdm
     - numpy
