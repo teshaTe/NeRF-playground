@@ -11,9 +11,9 @@ class NerfRender:
     """
     def __init__(self, res_x, res_y, num_bins=100, device='cpu'):
         """
-
-        :param res_x:
-        :param res_y:
+        A constructor of the class for rendering NeRF model.
+        :param res_x: an int parameter that corresponds to the width of the image being used in training/testing
+        :param res_y: an int parameter that corresponds to the height of the image being used in training/testing
         :param num_bins: an integer parameter specifying the amount of bins for sampling t values
         :param device:
         """
@@ -35,21 +35,23 @@ class NerfRender:
                                 fx 0 cx 0  where fx, fy - focal length of the camera in pixels along x and y axis;
                                 0 fy cy 0        cx, cy - coordinates of the principal point of the camera plane.
                                 0  0  1 0
-        :return: numpy ndarray with positional data of the camera rays origins (rays_o);
-                 numpy ndarray with directional data of the camera rays (rays_d)
+        :return: torch tensor with positional data of the camera rays origins (rays_o);
+                 torch tensor with directional data of the camera rays (rays_d)
         """
 
         # initializing the arrays
         total = len(cams_poses)
-        rays_o = np.zeros((total, self.res_x * self.res_y, 3))
-        rays_d = np.zeros((total, self.res_x * self.res_y, 3))
+        cams_poses = torch.from_numpy(cams_poses)
+        cams_intrinsics = torch.from_numpy(cams_intrinsics)
+        rays_o = torch.zeros((total, self.res_x * self.res_y, 3))
+        rays_d = torch.zeros((total, self.res_x * self.res_y, 3))
 
         # assembling rays arrays: origin & direction data per image
         for i in range(total):
             # defining camera plane
-            u = np.arange(self.res_x)
-            v = np.arange(self.res_y)
-            u, v = np.meshgrid(u, v)  # image plane
+            u = torch.arange(self.res_x)
+            v = torch.arange(self.res_y)
+            u, v = torch.meshgrid(u, v)  # image plane
 
             # intrinsics, extracting focal length in pixels along x and y axis (image plane)
             # Intrinsic matrix (https://towardsdatascience.com/what-are-intrinsic-and-extrinsic-camera-parameters-in-computer-vision-7071b72fb8ec):
@@ -58,11 +60,11 @@ class NerfRender:
             fy = cams_intrinsics[i][1, 1]
 
             # assembling direction vectors per image
-            rays_dirs = np.stack(((u - self.res_x / 2) / fx, (-(v - self.res_y / 2) / fy), -np.ones_like(u)), axis=-1)
-            rays_dirs = np.matmul(cams_poses[i][:3, :3], rays_dirs[..., None]).squeeze(-1)
+            rays_dirs = torch.stack(((u - self.res_x / 2) / fx, (-(v - self.res_y / 2) / fy), -np.ones_like(u)), axis=-1)
+            rays_dirs = torch.matmul(cams_poses[i][:3, :3], rays_dirs[..., None]).squeeze(-1)
 
             # normalizaton of the direction vectors
-            rays_dirs = rays_dirs / np.linalg.norm(rays_dirs, axis=-1, keepdims=True)
+            rays_dirs = rays_dirs / torch.linalg.norm(rays_dirs, axis=-1, keepdims=True)
 
             rays_d[i] = rays_dirs.reshape(-1, 3)
             rays_o[i] += cams_poses[i][:3, 3]
