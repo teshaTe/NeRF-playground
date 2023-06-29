@@ -1,9 +1,11 @@
+import os
 import numpy as np
 import tqdm
 import torch
 import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
+from pathlib import Path
 from time import time
 
 import Utils.DataLoader as dloader
@@ -52,17 +54,21 @@ def training(model, nerf_render, data_loader, optimizer, scheduler, tn, tf, num_
 
 
 if __name__ == '__main__':
+    root = Path(os.path.realpath(__file__)).parent
+
     data = r"D:\Myfiles\Projects\OnlineCourses\Udemy_nerf\dataset\fox"
     camera_intrinsic_train_data = data + "/train/intrinsics"
     camera_positional_train_data = data + "/train/pose"
     imgs_train_data = data + "/imgs/train"
+    model_name = "nerf_model_v1"
+    loss_file = "train_loss_nerf"
 
     device = "cuda"
     batch_size = 1024
     img_res_x = 400
     img_res_y = 400
     num_bins = 100
-    num_epochs = 13
+    num_epochs = 1
     chunk_size = 10
     learning_rate = 0.001
     tn = 8
@@ -82,21 +88,24 @@ if __name__ == '__main__':
     train_target_px_vals = NerfRender.generate_target_pixel_arr(train_imgs)
 
     # preparing training data loaders
-    data_tensor = torch.cat((train_rays_o.reshape(-1, 3).type(torch.float),
-                             train_rays_d.reshape(-1, 3).type(torch.float),
-                             train_target_px_vals.reshape(-1, 3).type(torch.float)), dim=1)
-
+    data_tensor = torch.cat((train_rays_o.reshape(-1, 3), train_rays_d.reshape(-1, 3), train_target_px_vals.reshape(-1, 3)), dim=1)
     dataloader = DataLoader(data_tensor, batch_size=batch_size, shuffle=True)
 
-
     # training warm up: training only the middle part of the dataset, synthetic data only
-    data_tensor_warmup = torch.cat((train_rays_o.reshape(90, 400, 400, 3)[:, 100:300, 100:300, :].reshape(-1, 3).type(torch.float),
-                                    train_rays_d.reshape(90, 400, 400, 3)[:, 100:300, 100:300, :].reshape(-1, 3).type(torch.float),
-                                    train_target_px_vals.reshape(90, 400, 400, 3)[:, 100:300, 100:300, :].reshape(-1,3).type(torch.float)), dim=1)
+    data_tensor_warmup = torch.cat((train_rays_o.reshape(90, 400, 400, 3)[:, 100:300, 100:300, :].reshape(-1, 3),
+                                    train_rays_d.reshape(90, 400, 400, 3)[:, 100:300, 100:300, :].reshape(-1, 3),
+                                    train_target_px_vals.reshape(90, 400, 400, 3)[:, 100:300, 100:300, :].reshape(-1, 3)), dim=1)
     dataloader_warmup = DataLoader(data_tensor_warmup, batch_size=batch_size, shuffle=True)
 
     # Setting up the model and it's training
     model = NerfModel.VanillaNerfModel().to(device)
+
+    model_dir = root / "torch_models"
+    model_dir.mkdir(exist_ok=True)
+
+    loss_dir = root / "loss"
+    loss_dir.mkdir(exist_ok=True)
+
     if train:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5, 10], gamma=0.5)
@@ -104,11 +113,11 @@ if __name__ == '__main__':
         training_loss, model = training(model, NerfRender, dataloader_warmup, optimizer, scheduler, tn, tf, 1, device=device)
         training_loss, model = training(model, NerfRender, dataloader, optimizer, scheduler, tn, tf, num_epochs, device=device)
 
-        torch.save(model.state_dict(), r"D:\Myfiles\Projects\OnlineCourses\Udemy_nerf\Models\nerf_v2.pt")
-        np.savetxt("train_loss_nerf.csv", training_loss, delimiter=',')
+        torch.save(model.state_dict(), model_dir.as_posix() + "/" + model_name + ".pt")
+        np.savetxt(loss_dir.as_posix() + "/" + loss_file + ".csv", training_loss, delimiter=',')
     else:
-        model.load_state_dict(torch.load(r"D:\Myfiles\Projects\OnlineCourses\Udemy_nerf\Models\nerf_v2.pt"))
-        training_loss = np.loadtxt("train_loss_nerf.csv", delimiter=',')
+        model.load_state_dict(torch.load(model_dir.as_posix() + "/" + model_name + ".pt"))
+        training_loss = np.loadtxt(loss_dir.as_posix() + "/" + loss_file + ".csv", delimiter=',')
 
     # rendering the nerf model after training
     img, _ = NerfRender.generate_view(model, train_rays_o[0], train_rays_d[0], tn, tf, num_bins, chunk_size)
