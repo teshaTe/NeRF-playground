@@ -14,7 +14,7 @@ if __name__ == '__main__':
     grid_res = 100
     grid_scale = 1.5
     mcube_thres = 3.0
-
+    
     nerf_model = "FullyFusedMLP"  # Vanilla, FullyFusedMLP
     model_name = "nerf_model_v2"
     model_dir = root / "torch_models"
