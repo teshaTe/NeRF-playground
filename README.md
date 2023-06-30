@@ -11,7 +11,10 @@ This is a pytorch-based repository with implementation of the Neural Radiance Fi
 To run the code from this repository the following is essential:
 - To run Vanilla NeRF training NVIDIA GPU will be preferable with 8 GB of RAM minimum. However, the code can be run on CPU too.
 - Conda environment: needs to be installed and initialized using environment.yml file. All dependencies will be automatically installed. 
-
+- install tiny-cuda-nn using the following command:
+```
+pip install git+https://github.com/NVlabs/tiny-cuda-nn/#subdirectory=bindings/torch
+```
 
 ### Project description
 
