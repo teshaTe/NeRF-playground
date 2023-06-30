@@ -75,7 +75,7 @@ if __name__ == '__main__':
     learning_rate = 0.001
     tn = 8
     tf = 12
-    train = True
+    train = False
 
     # loading camera parameters (transforms + intrinsics), images for training the model
     print("[INFO] Loading training data.")
@@ -136,12 +136,19 @@ if __name__ == '__main__':
         print("[INFO] Done. \n")
     else:
         print("[INFO] Loading model: ", model_name + ".pt")
-        model = NerfModel.VanillaNerfModel().to(device)
+
+        if nerf_model == "Vanilla":
+            model = NerfModel.VanillaNerfModel().to(device)
+        elif nerf_model == "FullyFusedMLP":
+            model = NerfFFModel.FFNerfModel().to(device)
+        else:
+            raise ValueError("Unknown model name has been specified!")
+
         model.load_state_dict(torch.load(model_dir.as_posix() + "/" + model_name + ".pt"))
         training_loss = np.loadtxt(loss_dir.as_posix() + "/" + loss_file + ".csv", delimiter=',')
         print("[INFO] Done. \n")
 
     # rendering the nerf model after training
-    img = NerfRender.generate_view(model, train_rays_o[10], train_rays_d[10], tn, tf, chunk_size)
+    img = NerfRender.generate_view(model, train_rays_o[34], train_rays_d[34], tn, tf, chunk_size)
     plt.imshow(img)
     plt.show()
