@@ -41,17 +41,17 @@ class NerfRender:
 
         # initializing the arrays
         total = len(cams_poses)
-        cams_poses = torch.from_numpy(cams_poses).type(torch.float)
-        cams_intrinsics = torch.from_numpy(cams_intrinsics).type(torch.float)
-        rays_o = torch.zeros((total, self.res_x * self.res_y, 3))
-        rays_d = torch.zeros((total, self.res_x * self.res_y, 3))
+        # cams_poses = torch.from_numpy(cams_poses).type(torch.float)
+        # cams_intrinsics = torch.from_numpy(cams_intrinsics).type(torch.float)
+        rays_o = np.zeros((total, self.res_x * self.res_y, 3))
+        rays_d = np.zeros((total, self.res_x * self.res_y, 3))
 
         # assembling rays arrays: origin & direction data per image
         for i in range(total):
             # defining camera plane
-            u = torch.arange(self.res_x)
-            v = torch.arange(self.res_y)
-            u, v = torch.meshgrid(u, v)  # image plane
+            u = np.arange(self.res_x)
+            v = np.arange(self.res_y)
+            u, v = np.meshgrid(u, v)  # image plane
 
             # intrinsics, extracting focal length in pixels along x and y axis (image plane)
             # Intrinsic matrix (https://towardsdatascience.com/what-are-intrinsic-and-extrinsic-camera-parameters-in-computer-vision-7071b72fb8ec):
@@ -60,16 +60,16 @@ class NerfRender:
             fy = cams_intrinsics[i][1, 1]
 
             # assembling direction vectors per image
-            rays_dirs = torch.stack(((u - self.res_x / 2) / fx, (-(v - self.res_y / 2) / fy), -torch.ones_like(u)), axis=-1)
-            rays_dirs = torch.matmul(cams_poses[i][:3, :3], rays_dirs[..., None]).squeeze(-1)
+            rays_dirs = np.stack(((u - self.res_x / 2) / fx, (-(v - self.res_y / 2) / fy), -np.ones_like(u)), axis=-1)
+            rays_dirs = np.matmul(cams_poses[i][:3, :3], rays_dirs[..., None]).squeeze(-1)
 
             # normalizaton of the direction vectors
-            rays_dirs = rays_dirs / torch.linalg.norm(rays_dirs, axis=-1, keepdims=True)
+            rays_dirs = rays_dirs / np.linalg.norm(rays_dirs, axis=-1, keepdims=True)
 
             rays_d[i] = rays_dirs.reshape(-1, 3)
             rays_o[i] += cams_poses[i][:3, 3]
 
-        return rays_o, rays_d
+        return torch.from_numpy(rays_o).to(self.device).type(torch.float), torch.from_numpy(rays_d).to(self.device).type(torch.float)
 
     def generate_target_pixel_arr(self, images):
         """
@@ -77,7 +77,7 @@ class NerfRender:
         :param images: a numpy ndarray (N x W x H x 3) with imagery data
         :return: a numpy ndarray with pixel data
         """
-        return torch.from_numpy(images.reshape((len(images), self.res_x*self.res_y, 3))).type(torch.float)
+        return torch.from_numpy(images.reshape((len(images), self.res_x*self.res_y, 3))).type(torch.float).to(self.device)
 
     def compute_accumulated_transmittance(self, betas: torch.FloatTensor):
         """
