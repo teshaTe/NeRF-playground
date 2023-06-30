@@ -11,11 +11,12 @@ from time import time
 import Utils.DataLoader as dloader
 import Utils.Rendering as render
 import Model.VanillaModel as NerfModel
+import Model.FullyFusedModel as NerfFFModel
 
 
 def training(model, nerf_render, data_loader, optimizer, scheduler, tn, tf, num_epochs, device='cpu'):
     """
-    A function for training the Vanilla NeRF model.
+    A function for training the fully fused MLP or Vanilla NeRF model.
     :param model: a torch nn.Module object that defines the model object to be used for training
     :param nerf_render: an object that contains methods for rendering the NeRF
     :param data_loader: a torch dataloader object that will be used for training the model
@@ -63,12 +64,13 @@ if __name__ == '__main__':
     model_name = "nerf_model_v2"
     loss_file = "train_loss_nerf"
 
+    nerf_model = "FullyFusedMLP"  # Vanilla, FullyFusedMLP
     device = "cuda"
     batch_size = 1024
     img_res_x = 400
     img_res_y = 400
     num_bins = 100
-    num_epochs = 1
+    num_epochs = 5
     chunk_size = 10
     learning_rate = 0.001
     tn = 8
@@ -113,7 +115,12 @@ if __name__ == '__main__':
         dataloader_warmup = DataLoader(data_tensor_warmup, batch_size=batch_size, shuffle=True)
 
         # Setting up the model and it's training
-        model = NerfModel.VanillaNerfModel().to(device)
+        if nerf_model == "Vanilla":
+            model = NerfModel.VanillaNerfModel().to(device)
+        elif nerf_model == "FullyFusedMLP":
+            model = NerfFFModel.FFNerfModel().to(device)
+        else:
+            raise ValueError("Unknown model name has been specified!")
 
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[5, 10], gamma=0.5)
