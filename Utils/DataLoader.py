@@ -22,6 +22,9 @@ class DataSetLoader:
 
         files_path = Path(files_path)
         cam_intrinsics_files = natsorted([f for f in files_path.iterdir() if f.suffix.lower() == '.txt'], key=lambda y: y.as_posix().lower())
+
+        assert len(cam_intrinsics_files) > 0
+
         files_number = len(cam_intrinsics_files)
         cam_intrinsics = np.zeros((files_number, 4, 4))
 
@@ -40,6 +43,9 @@ class DataSetLoader:
         """
         files_path = Path(files_path)
         cam_pose_files = natsorted([f for f in files_path.iterdir() if f.suffix.lower() == ".txt"], key=lambda y: y.as_posix().lower())
+
+        assert len(cam_pose_files) > 0
+
         files_number = len(cam_pose_files)
         cam_poses = np.zeros((files_number, 4, 4))
 
